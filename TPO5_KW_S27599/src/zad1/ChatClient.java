@@ -11,8 +11,9 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
-import static javax.management.remote.JMXConnectorFactory.connect;
 
 public class ChatClient {
 
@@ -23,6 +24,7 @@ public class ChatClient {
     private ByteBuffer inBuf;
     private ByteBuffer outBuf;
     private Thread messageReceiver;
+    private List<String> chatViev;
 
 
     public ChatClient(String host, int port, String id) {
@@ -31,7 +33,8 @@ public class ChatClient {
         this.id = id;
         this.inBuf = ByteBuffer.allocateDirect(1024);
         this.outBuf = ByteBuffer.allocateDirect(1024);
-
+        this.chatViev = new ArrayList<>();
+        chatViev.add("=== " + id + " chat view");
         try {
             socketChannel = SocketChannel.open();
         } catch (IOException e) {
@@ -48,11 +51,14 @@ public class ChatClient {
                         CharBuffer decoded = StandardCharsets.UTF_8.decode(inBuf);
                         while (decoded.hasRemaining()) {
                             char ch = decoded.get();
-
                             if (Character.toString(ch).equals("\u0004")) {
-                                System.out.println(message);
+//                                System.out.println(message);
+                                if(message.toString().contains(id+" logged out")){
+                                    messageReceiver.interrupt();
+                                }
+                                chatViev.add(message.toString());
                                 message.setLength(0);
-                            }else{
+                            } else {
                                 message.append(ch);
                             }
 
@@ -76,7 +82,6 @@ public class ChatClient {
 
     public void logout() {
         send("bye");
-        messageReceiver.interrupt();
     }
 
     public void send(String req) {
@@ -92,12 +97,14 @@ public class ChatClient {
     }
 
     public String getChatView() {
-        return " ";
+        StringBuilder sb = new StringBuilder();
+        for (String str : chatViev) {
+            sb.append(str).append("\n");
+        }
+        return sb.toString();
     }
 
-    public String getId() {
-        return id;
-    }
+
 
     private void connect() {
         try {

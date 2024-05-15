@@ -17,10 +17,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class ChatServer implements Runnable {
 
@@ -31,7 +28,8 @@ public class ChatServer implements Runnable {
     private Thread thread;
     private ByteBuffer inBuffer = ByteBuffer.allocate(1024);
     private StringBuilder request = new StringBuilder();
-    private Map<SocketChannel, String> clients;
+    private static Map<SocketChannel, String> clients;
+    private static List<String> serverLog;
 
 
     public ChatServer(String host, int port) {
@@ -46,6 +44,7 @@ public class ChatServer implements Runnable {
             serverSocketChannel.configureBlocking(false);
             serverSocketChannel.socket().bind(new InetSocketAddress(host, port));
             selector = Selector.open();
+            serverLog = new ArrayList<>();
 
             serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
         } catch (IOException e) {
@@ -53,14 +52,20 @@ public class ChatServer implements Runnable {
         }
         thread = new Thread(this);
         thread.start();
+        System.out.println("Server started\n");
     }
 
     public void stopServer() {
         thread.interrupt();
+        System.out.println("Server stopped");
     }
 
     public String getServerLog() {
-        return "";
+        StringBuilder sb = new StringBuilder();
+        for (String str : serverLog) {
+            sb.append(str).append("\n");
+        }
+        return sb.toString();
     }
 
     @Override
@@ -107,16 +112,11 @@ public class ChatServer implements Runnable {
                 CharBuffer decoded = StandardCharsets.UTF_8.decode(inBuffer);
                 while (decoded.hasRemaining()) {
                     char ch = decoded.get();
-                    request.append(ch);
                     if (Character.toString(ch).equals("\u0004")) {
                         processRequest(request.toString(), socketChannel);
-//                        response = response + "\u0004";
-                        //BRODCAST
-                        brodcast(request.toString(), socketChannel);
-
-//                        ByteBuffer responseBuffer = ByteBuffer.wrap(response.getBytes());
-//                        socketChannel.write(responseBuffer);
                         request.setLength(0);
+                    } else {
+                        request.append(ch);
                     }
 
                 }
@@ -134,43 +134,39 @@ public class ChatServer implements Runnable {
     }
 
 
-    private String processRequest(String request, SocketChannel socketChannel) throws IOException {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
-        request = request.replace("\u0004", "");
-        String s = socketChannel.getRemoteAddress().toString();
+    private void processRequest(String request, SocketChannel socketChannel) throws IOException {
         if (request.startsWith("login")) {
             String user = request.split(" ")[1];
             clients.put(socketChannel, user);
-            brodcast(user + " logged in",socketChannel);
-//            user = request.split(" ")[1];
-//            usernamesMap.put(s, user);
-//            clientLogs.put(s, new ArrayList<>());
-//            clientLogs.get(s).add("=== " + usernamesMap.get(s) + " log start ===");
-//            clientLogs.get(s).add("logged in");
-//            serverLog.add(usernamesMap.get(s) + " logged in at " + LocalDateTime.now().format(formatter));
-            return "logged in";
+            brodcast(user + " logged in", socketChannel);
+
         } else if (request.equals("bye")) {
+            brodcast(clients.get(socketChannel) + " logged out", socketChannel);
             clients.remove(socketChannel);
             socketChannel.close();
-//            clientLogs.get(s).add("logged out");
-//            clientLogs.get(s).add("=== " + usernamesMap.get(s) + " log end ===");
-//            serverLog.add(usernamesMap.get(s) + " logged out at " + LocalDateTime.now().format(formatter));
-            return "logged out";
+
+        } else {
+            request = clients.get(socketChannel) + ": " + request;
+            brodcast(request.toString(), socketChannel);
+
         }
-
-        //garbage
-        return request;
-
-
     }
 
     private void brodcast(String msg, SocketChannel senderSocketChannel) throws IOException {
+        saveToServerLog(msg);
+        msg = msg + "\u0004";
         for (Map.Entry<SocketChannel, String> entry : clients.entrySet()) {
-            if (!entry.getKey().equals(senderSocketChannel)) {
+//            if (!entry.getKey().equals(senderSocketChannel)) {
                 ByteBuffer responseBuffer = ByteBuffer.wrap(msg.getBytes());
                 entry.getKey().write(responseBuffer);
-            }
+//            }
         }
     }
+
+    private void saveToServerLog(String message) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
+        serverLog.add(LocalDateTime.now().format(formatter) + " " + message);
+    }
+
 
 }
