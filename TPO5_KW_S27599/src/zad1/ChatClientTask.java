@@ -16,7 +16,7 @@ public class ChatClientTask extends FutureTask<String> {
     public ChatClientTask(ChatClient c, List<String> msgs, int wait) {
         super(() -> {
             try {
-                c.login(c.getId());
+                c.login();
                 if (wait > 0) {
                     Thread.sleep(wait);
                 }
