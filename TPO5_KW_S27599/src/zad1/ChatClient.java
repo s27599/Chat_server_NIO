@@ -25,6 +25,8 @@ public class ChatClient {
     private ByteBuffer outBuf;
     private Thread messageReceiver;
     private List<String> chatViev;
+    CharBuffer decoded;
+//    private StringBuilder cache = new StringBuilder();
 
 
     public ChatClient(String host, int port, String id) {
@@ -48,36 +50,51 @@ public class ChatClient {
                     int n = socketChannel.read(inBuf);
                     if (n > 0) {
                         inBuf.flip();
-                        CharBuffer decoded = StandardCharsets.UTF_8.decode(inBuf);
-                        while (decoded.hasRemaining()) {
-                            char ch = decoded.get();
-                            if (Character.toString(ch).equals("\u0004")) {
-//                                System.out.println(message);
-                                if(message.toString().contains(id+" logged out")){
-                                    messageReceiver.interrupt();
-                                }
-                                chatViev.add(message.toString());
-                                message.setLength(0);
-                            } else {
-                                message.append(ch);
-                            }
+                        decoded = StandardCharsets.UTF_8.decode(inBuf);
 
+                        int fullMessages = countChar(decoded.toString(), '\u0004');
+                        String[] messages = decoded.toString().split(String.valueOf("\u0004"));
+                        for (int a = 0; a < fullMessages; a++) {
+                            if(messages[a].contains(id+" logged out")){
+                                messageReceiver.interrupt();
+                            }
+                            chatViev.add(messages[a]);
                         }
+
+
+//                        while (decoded.hasRemaining()) {
+//                            char ch = decoded.get();
+//                            if (Character.toString(ch).equals("\u0004")) {
+////                                System.out.println(id + "---- " + message);
+//                                if(message.toString().contains(id+" logged out")){
+//                                    messageReceiver.interrupt();
+//                                }
+//                                chatViev.add(message.toString());
+//                                message.setLength(0);
+//                            } else {
+//                                message.append(ch);
+//                            }
+//
+//                        }
 
                     }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    chatViev.add("***"+e.toString());
                 }
+//                System.out.println("chatViev from client " + id + ":");
+//                System.out.println(chatViev);
                 inBuf.clear();
 
             }
+
         });
     }
 
     public void login() {
         connect();
-        messageReceiver.start();
         send("login " + id);
+        messageReceiver.start();
+        messageReceiver.setName("Client " + id + " message receiver");
     }
 
     public void logout() {
@@ -94,6 +111,10 @@ public class ChatClient {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public String getId() {
+        return id;
     }
 
     public String getChatView() {
@@ -118,5 +139,14 @@ public class ChatClient {
 
     }
 
+    private int countChar(String str, char c){
+        int count=0;
+        for(int i=0;i<str.length();i++){
+            if(str.charAt(i)==c){
+                count++;
+            }
+        }
+        return count;
 
+    }
 }

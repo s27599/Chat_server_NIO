@@ -27,9 +27,11 @@ public class ChatServer implements Runnable {
     private Selector selector = null;
     private Thread thread;
     private ByteBuffer inBuffer = ByteBuffer.allocate(1024);
-    private StringBuilder request = new StringBuilder();
+    //    private StringBuilder request = new StringBuilder();
+//    private String[] requests;
     private static Map<SocketChannel, String> clients;
     private static List<String> serverLog;
+    private static StringBuilder cache = new StringBuilder();
 
 
     public ChatServer(String host, int port) {
@@ -52,6 +54,7 @@ public class ChatServer implements Runnable {
         }
         thread = new Thread(this);
         thread.start();
+        thread.setName("Server thread");
         System.out.println("Server started\n");
     }
 
@@ -97,30 +100,48 @@ public class ChatServer implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 
     private void serviceRequest(SocketChannel socketChannel) {
         if (!socketChannel.isOpen()) {
             return;
         }
-        request.setLength(0);
         inBuffer.clear();
+        //receive message from client
         try {
             int n = socketChannel.read(inBuffer);
             if (n > 0) {
                 inBuffer.flip();
                 CharBuffer decoded = StandardCharsets.UTF_8.decode(inBuffer);
-                while (decoded.hasRemaining()) {
-                    char ch = decoded.get();
-                    if (Character.toString(ch).equals("\u0004")) {
-                        processRequest(request.toString(), socketChannel);
-                        request.setLength(0);
-                    } else {
-                        request.append(ch);
-                    }
 
+                int fullMessages=countChar(decoded.toString(),'\u0004');
+                String[] requests = decoded.toString().split("\u0004");
+                for(int i=0;i<fullMessages;i++){
+                        processRequest(requests[i], socketChannel);
                 }
+//                String partialMessage = decoded.toString();
+//                int splitIndex;
+//                while ((splitIndex = partialMessage.indexOf("\u0004")) != -1) {
+//                    String request = partialMessage.substring(0, splitIndex);
+//                    processRequest(request, socketChannel);
+//                    partialMessage = partialMessage.substring(splitIndex + 1);
+//                }
+//                inBuffer.position(decoded.position());
+//                inBuffer.compact();
 
+//                while (decoded.hasRemaining()) {
+//                    String[] requests = decoded.toString().split("\u0004");
+//                    for (String request : requests) {
+////                        System.out.println(request);
+//                        processRequest(request, socketChannel);
+//                    }
+//                    decoded.compact();
+//                    decoded.clear();
+//                    decoded.flip();
+//                    inBuffer.clear();
+//
+//                }
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -135,10 +156,10 @@ public class ChatServer implements Runnable {
 
 
     private void processRequest(String request, SocketChannel socketChannel) throws IOException {
-        if (request.startsWith("login")) {
+        if (request.startsWith("login")&&!clients.containsKey(socketChannel)) {
             String user = request.split(" ")[1];
-            clients.put(socketChannel, user);
-            brodcast(user + " logged in", socketChannel);
+                clients.put(socketChannel, user);
+                brodcast(user + " logged in", socketChannel);
 
         } else if (request.equals("bye")) {
             brodcast(clients.get(socketChannel) + " logged out", socketChannel);
@@ -157,8 +178,8 @@ public class ChatServer implements Runnable {
         msg = msg + "\u0004";
         for (Map.Entry<SocketChannel, String> entry : clients.entrySet()) {
 //            if (!entry.getKey().equals(senderSocketChannel)) {
-                ByteBuffer responseBuffer = ByteBuffer.wrap(msg.getBytes());
-                entry.getKey().write(responseBuffer);
+            ByteBuffer responseBuffer = ByteBuffer.wrap(msg.getBytes());
+            entry.getKey().write(responseBuffer);
 //            }
         }
     }
@@ -168,5 +189,16 @@ public class ChatServer implements Runnable {
         serverLog.add(LocalDateTime.now().format(formatter) + " " + message);
     }
 
+
+    private int countChar(String str, char c){
+        int count=0;
+        for(int i=0;i<str.length();i++){
+            if(str.charAt(i)==c){
+                count++;
+            }
+        }
+        return count;
+
+    }
 
 }
