@@ -22,11 +22,9 @@ public class ChatClient {
     private String id;
     private SocketChannel socketChannel;
     private ByteBuffer inBuf;
-    private ByteBuffer outBuf;
     private Thread messageReceiver;
     private List<String> chatViev;
     CharBuffer decoded;
-//    private StringBuilder cache = new StringBuilder();
 
 
     public ChatClient(String host, int port, String id) {
@@ -34,7 +32,6 @@ public class ChatClient {
         this.port = port;
         this.id = id;
         this.inBuf = ByteBuffer.allocateDirect(1024);
-        this.outBuf = ByteBuffer.allocateDirect(1024);
         this.chatViev = new ArrayList<>();
         chatViev.add("=== " + id + " chat view");
         try {
@@ -45,7 +42,6 @@ public class ChatClient {
 
         messageReceiver = new Thread(() -> {
             while (!messageReceiver.isInterrupted()) {
-                StringBuilder message = new StringBuilder();
                 try {
                     int n = socketChannel.read(inBuf);
                     if (n > 0) {
@@ -61,29 +57,15 @@ public class ChatClient {
                             chatViev.add(messages[a]);
                         }
 
-
-//                        while (decoded.hasRemaining()) {
-//                            char ch = decoded.get();
-//                            if (Character.toString(ch).equals("\u0004")) {
-////                                System.out.println(id + "---- " + message);
-//                                if(message.toString().contains(id+" logged out")){
-//                                    messageReceiver.interrupt();
-//                                }
-//                                chatViev.add(message.toString());
-//                                message.setLength(0);
-//                            } else {
-//                                message.append(ch);
-//                            }
-//
-//                        }
-
-                    }
+                                            }
                 } catch (IOException e) {
                     chatViev.add("***"+e.toString());
                 }
 //                System.out.println("chatViev from client " + id + ":");
 //                System.out.println(chatViev);
+//                System.out.println("123");
                 inBuf.clear();
+
 
             }
 
@@ -99,15 +81,18 @@ public class ChatClient {
 
     public void logout() {
         send("bye");
+//        messageReceiver.interrupt();
+//        try {
+//            socketChannel.close();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
     }
 
     public void send(String req) {
         try {
-            outBuf.put(req.getBytes());
-            outBuf.put((byte) '\u0004');
-            outBuf.flip();
-            socketChannel.write(outBuf);
-            outBuf.clear();
+            ByteBuffer encoded = StandardCharsets.UTF_8.encode(CharBuffer.wrap(req+"\u0004"));
+            socketChannel.write(encoded);
         } catch (IOException e) {
             e.printStackTrace();
         }
