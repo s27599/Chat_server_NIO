@@ -18,17 +18,17 @@ public class ChatClientTask extends FutureTask<String> {
             try {
                 c.login();
                 if (wait > 0) {
-                    Thread.sleep(wait);
+                    sleep(wait);
                 }
                 for (String req : msgs) {
                     c.send(req);
                     if (wait > 0) {
-                        Thread.sleep(wait);
+                        sleep(wait);
                     }
                 }
                 c.logout();
                 if (wait > 0) {
-                    Thread.sleep(wait);
+                    sleep(wait);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -44,5 +44,10 @@ public class ChatClientTask extends FutureTask<String> {
 
     public ChatClient getClient() {
         return client;
+    }
+
+    public static void sleep(int time){
+        long i = System.currentTimeMillis();
+        while (System.currentTimeMillis() - i < time) ;
     }
 }

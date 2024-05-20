@@ -24,6 +24,7 @@ public class ChatClient {
     private ByteBuffer inBuf;
     private Thread messageReceiver;
     private List<String> chatViev;
+    private boolean logged;
     CharBuffer decoded;
 
 
@@ -53,11 +54,17 @@ public class ChatClient {
                         for (int a = 0; a < fullMessages; a++) {
                             if(messages[a].contains(id+" logged out")){
                                 messageReceiver.interrupt();
+                                logged=false;
                             }
+
+                            if(messages[a].contains(id+" logged in")){
+                                logged=true;
+                            }
+
                             chatViev.add(messages[a]);
                         }
 
-                                            }
+                    }
                 } catch (IOException e) {
                     chatViev.add("***"+e.toString());
                 }
@@ -65,8 +72,6 @@ public class ChatClient {
 //                System.out.println(chatViev);
 //                System.out.println("123");
                 inBuf.clear();
-
-
             }
 
         });
@@ -81,12 +86,7 @@ public class ChatClient {
 
     public void logout() {
         send("bye");
-//        messageReceiver.interrupt();
-//        try {
-//            socketChannel.close();
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
+        while(logged|| !messageReceiver.isInterrupted());
     }
 
     public void send(String req) {

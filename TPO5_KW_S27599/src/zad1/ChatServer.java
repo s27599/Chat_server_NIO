@@ -27,8 +27,8 @@ public class ChatServer implements Runnable {
     private Selector selector = null;
     private Thread thread;
     private ByteBuffer inBuffer = ByteBuffer.allocate(1024);
-    private static Map<SocketChannel, String> clients;
-    private static  List<String> serverLog;
+    private  Map<SocketChannel, String> clients;
+    private  List<String> serverLog;
 
 
     public ChatServer(String host, int port) {
@@ -138,9 +138,7 @@ public class ChatServer implements Runnable {
 
         } else if (request.equals("bye")) {
             String name = clients.get(socketChannel);
-//            clients.remove(socketChannel);
             brodcast(name + " logged out");
-//            socketChannel.write(StandardCharsets.UTF_8.encode(CharBuffer.wrap("")));
             clients.remove(socketChannel);
             socketChannel.close();
 
@@ -151,13 +149,16 @@ public class ChatServer implements Runnable {
         }
     }
 
-    private void brodcast(String msg) throws IOException {
+    private void brodcast(String msg){
         saveToServerLog(msg);
         msg = msg + "\u0004";
         for (Map.Entry<SocketChannel, String> entry : clients.entrySet()) {
             ByteBuffer encoded = StandardCharsets.UTF_8.encode(CharBuffer.wrap(msg));
-            entry.getKey().write(encoded);
-
+            try {
+                entry.getKey().write(encoded);
+            }catch (Exception exc){
+                clients.remove(entry.getKey());
+            }
         }
     }
 
@@ -175,7 +176,5 @@ public class ChatServer implements Runnable {
             }
         }
         return count;
-
     }
-
 }
